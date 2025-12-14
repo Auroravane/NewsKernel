@@ -1,0 +1,6 @@
+requests
+edge-tts
+groq
+supabase
+python-dotenv
+asyncio
