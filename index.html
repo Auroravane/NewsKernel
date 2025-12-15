@@ -8,7 +8,7 @@
     <style>
         /* --- RESET & VARIABLES --- */
         :root {
-            --primary: #00FF88; /* Neon Cyber Green */
+            --primary: #00E5FF; /* CHANGED: Cyanic Blue */
             --accent: #FF4C29;  /* Alert Red/Orange */
             --bg: #050505;
             --surface: #0F0F0F;
@@ -38,7 +38,7 @@
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            overflow: hidden; /* Prevent scroll on body, scroll inside components */
+            overflow: hidden; 
         }
 
         /* --- TYPOGRAPHY --- */
@@ -65,10 +65,10 @@
             font-family: var(--font-mono);
             font-size: 0.75rem;
             color: var(--primary);
-            border: 1px solid rgba(0, 255, 136, 0.2);
+            border: 1px solid rgba(0, 229, 255, 0.2); /* Adjusted border color */
             padding: 4px 8px;
             border-radius: 4px;
-            background: rgba(0, 255, 136, 0.05);
+            background: rgba(0, 229, 255, 0.05); /* Adjusted bg color */
             z-index: 10;
         }
 
@@ -104,9 +104,8 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
-            /* Vertical Layout Strategy */
             height: 85vh; 
-            justify-content: flex-end; /* Push interactions to bottom */
+            justify-content: flex-end; 
         }
 
         /* Visualizer Area */
@@ -122,7 +121,7 @@
             margin-bottom: 10px;
             overflow: hidden;
         }
-        canvas { width: 100%; height: 100%; opacity: 0.6; }
+        canvas { width: 100%; height: 100%; } /* Removed opacity for sharper lines */
         .viz-placeholder {
             position: absolute;
             font-family: var(--font-mono);
@@ -176,7 +175,7 @@
                 inset 0 1px 1px rgba(255,255,255,0.1);
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: absolute;
-            top: -40px; /* Half outside the box */
+            top: -40px; 
             left: 50%;
             transform: translateX(-50%);
             z-index: 5;
@@ -185,8 +184,8 @@
         .big-play-btn:active { transform: translateX(-50%) scale(0.95); box-shadow: 0 5px 10px rgba(0,0,0,0.5); }
         .big-play-btn.playing { 
             color: var(--primary); 
-            border-color: rgba(0,255,136,0.3);
-            box-shadow: 0 0 20px rgba(0,255,136,0.1), inset 0 0 10px rgba(0,0,0,0.8);
+            border-color: rgba(0, 229, 255, 0.3); /* Adjusted to cyan */
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.2), inset 0 0 10px rgba(0,0,0,0.8); /* brighter cyan glow */
         }
 
         /* Progress Bar */
@@ -196,7 +195,7 @@
             background: #222;
             border-radius: 2px;
             overflow: hidden;
-            margin-top: 10px; /* Space for the big button */
+            margin-top: 10px; 
             position: relative;
         }
         .progress-fill {
@@ -318,7 +317,8 @@
                 <i class="ph-fill ph-play" id="playIcon"></i>
             </button>
 
-            <div class="play-row" style="margin-top: 30px;"> <span class="time-display" id="currentTime">00:00</span>
+            <div class="play-row" style="margin-top: 30px;">
+                <span class="time-display" id="currentTime">00:00</span>
                 <span class="time-display" style="text-align:right" id="duration">--:--</span>
             </div>
             <div class="progress-track">
@@ -363,20 +363,16 @@
 
         async function initNewsKernal() {
             try {
-                // 1. Fetch Data
                 const res = await fetch(`${BASE_URL}/latest_data.json?t=${Date.now()}`);
                 if (!res.ok) throw new Error("Offline");
                 const data = await res.json();
                 
-                // 2. Set Data
                 globalText = data.summary;
                 document.getElementById('dateDisplay').innerText = data.date;
                 document.getElementById('transcriptContent').innerText = "> " + data.summary.replace(/\n/g, "\n> ");
                 
-                // 3. Set Audio
                 audio.src = `${BASE_URL}/latest_brief.mp3?t=${Date.now()}`;
                 
-                // 4. Update UI to Ready
                 statusText.innerText = "READY";
                 vizText.innerText = "PRESS PLAY TO DECRYPT";
                 playBtn.disabled = false;
@@ -390,7 +386,7 @@
             }
         }
 
-        // --- AUDIO ENGINE ---
+        // --- AUDIO ENGINE (MODIFIED FOR SLIM CYANS) ---
         function setupAudioContext() {
             if (isAudioCtxSetup) return;
             
@@ -402,13 +398,12 @@
             source.connect(analyser);
             analyser.connect(audioCtx.destination);
             
-            analyser.fftSize = 64; // Low res for blocky aesthetic
+            // CHANGED: Higher FFT size for more resolution (slim lines)
+            analyser.fftSize = 512; 
             
-            // Canvas Setup
             canvas = document.getElementById('vizCanvas');
             ctx = canvas.getContext('2d');
             
-            // Handle HiDPI
             const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect();
             canvas.width = rect.width * dpr;
@@ -430,24 +425,30 @@
             
             const width = canvas.width / window.devicePixelRatio;
             const height = canvas.height / window.devicePixelRatio;
-            const barWidth = (width / bufferLength) * 2.5;
+            
+            // CHANGED: Calculate finer bar width
+            const barWidth = width / bufferLength;
             let barHeight;
             let x = 0;
 
             for (let i = 0; i < bufferLength; i++) {
                 barHeight = (dataArray[i] / 255) * height * 0.8;
                 
-                // Aesthetic Color Logic
-                ctx.fillStyle = `rgba(0, 255, 136, ${dataArray[i]/255})`; // Green opacity based on volume
+                // CHANGED: Cyanic Blue RGB coordinates
+                const opacity = Math.max(0.2, dataArray[i]/255); // Ensure faint lines exist even at low volume
+                ctx.fillStyle = `rgba(0, 229, 255, ${opacity})`; 
                 
-                // Rounded Bars
-                ctx.fillRect(x, (height - barHeight) / 2, barWidth - 2, barHeight); // Centered waveform
+                // CHANGED: Slim lines logic. Draw very thin line centered in slot.
+                // Ensure it's at least 1px wide, but generally thin.
+                const drawThickness = Math.max(1.5, barWidth * 0.6); 
+                
+                // Center centered drawing
+                ctx.fillRect(x + (barWidth - drawThickness)/2, (height - barHeight) / 2, drawThickness, barHeight);
                 x += barWidth;
             }
         }
 
         function toggleAudio() {
-            // Browser policy: Context must resume on user gesture
             if (!isAudioCtxSetup) setupAudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
@@ -459,7 +460,7 @@
                 statusText.innerText = "BROADCASTING";
                 statusDot.classList.add('pulsing');
                 vizText.style.display = 'none';
-                drawVisualizer(); // Start loop
+                drawVisualizer();
             } else {
                 audio.pause();
                 playBtn.classList.remove('playing');
