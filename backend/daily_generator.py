@@ -8,18 +8,17 @@ import edge_tts
 from supabase import create_client
 
 # --- CONFIGURATION ---
-# The exact name of your bucket from the screenshot (Case Sensitive!)
-BUCKET_NAME = "NewsKernal" 
+BUCKET_NAME = "NewsKernal"
 
-# Load Secrets
-NEWS_API_KEY = os.getenv("NEWSDATA_API_KEY")
+# Load Secrets (Mapped from NEWSDATA_API_KEY in YAML)
+NEWS_API_KEY = os.getenv("NEWSDATA_API_KEY") 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Verify Secrets exist before starting
+# Verify Secrets
 if not all([NEWS_API_KEY, GROQ_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
-    print("❌ ERROR: One or more API Keys are missing from GitHub Secrets.")
+    print("❌ ERROR: One or more API Keys are missing.")
     exit(1)
 
 # Initialize Clients
@@ -42,7 +41,6 @@ async def main():
             return
 
         articles = []
-        # Grab top 5 stories
         for item in data.get('results', [])[:5]:
             desc = item.get('description') or item.get('title')
             articles.append(f"Headline: {item['title']}\nSummary: {desc}")
@@ -53,7 +51,7 @@ async def main():
 
         print(f"✅ Found {len(articles)} stories.")
 
-        # 2. SUMMARIZE (Groq / Llama 3)
+        # 2. SUMMARIZE (Updated Model Name)
         print("🧠 NewsKernal AI is writing the script...")
         system_prompt = (
             "You are the voice of NewsKernal, a futuristic tech news station. "
@@ -69,20 +67,19 @@ async def main():
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": "\n\n".join(articles)}
             ],
-            model="llama3-8b-8192"
+            # UPDATED MODEL NAME BELOW:
+            model="llama-3.3-70b-versatile"
         )
         script_text = completion.choices[0].message.content
 
-        # 3. GENERATE AUDIO (Edge-TTS)
+        # 3. GENERATE AUDIO
         print("🎙️ Synthesizing Voice...")
         output_file = "brief_today.mp3"
-        # Voice: 'en-US-BrianNeural'
         communicate = edge_tts.Communicate(script_text, "en-US-BrianNeural") 
         await communicate.save(output_file)
 
-        # 4. UPLOAD TO SUPABASE (Using BUCKET_NAME variable)
+        # 4. UPLOAD TO SUPABASE
         print(f"☁️ Uploading MP3 to {BUCKET_NAME}...")
-        
         with open(output_file, 'rb') as f:
             supabase.storage.from_(BUCKET_NAME).upload(
                 path="public/latest_brief.mp3",
@@ -106,7 +103,7 @@ async def main():
 
     except Exception as e:
         print(f"❌ Critical Error: {e}")
-        exit(1) # Force GitHub Action to fail so you see the Red X
+        exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main())
