@@ -399,7 +399,7 @@
             analyser.connect(audioCtx.destination);
             
             // CHANGED: Higher FFT size for more resolution (slim lines)
-            analyser.fftSize = 512; 
+            analyser.fftSize = 256; 
             
             canvas = document.getElementById('vizCanvas');
             ctx = canvas.getContext('2d');
@@ -413,41 +413,50 @@
             isAudioCtxSetup = true;
             drawVisualizer();
         }
+// REPLACE THE ENTIRE drawVisualizer FUNCTION WITH THIS:
+function drawVisualizer() {
+    if (!audio.paused) requestAnimationFrame(drawVisualizer);
+    
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Logic: Canvas Dimensions
+    const width = canvas.width / window.devicePixelRatio;
+    const height = canvas.height / window.devicePixelRatio;
+    
+    // Logic: Cut off the top 20% of frequencies (usually empty in speech) so bars look bigger
+    const usefulBins = Math.floor(bufferLength * 0.8);
+    
+    // Logic: "Stretching whole"
+    // Divide total width by the number of bins we are actually showing.
+    const slotWidth = width / usefulBins; 
+    
+    // Logic: "Slim lines, minimum space"
+    // We reserve 1px for the gap. The bar takes the rest.
+    // If the slot is small, we ensure the bar is at least 1px to remain visible.
+    const gap = 1; 
+    const barWidth = Math.max(1, slotWidth - gap);
 
-        function drawVisualizer() {
-            if (!audio.paused) requestAnimationFrame(drawVisualizer);
-            
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            analyser.getByteFrequencyData(dataArray);
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            const width = canvas.width / window.devicePixelRatio;
-            const height = canvas.height / window.devicePixelRatio;
-            
-            // CHANGED: Calculate finer bar width
-            const usableData = Math.floor(bufferLength * 1); 
-            const barWidth = width / usableData;
-            let barHeight;
-            let x = 0;
+    let x = 0;
 
-            for (let i = 0; i < usableData; i++) { 
-                barHeight = (dataArray[i] / 255) * height * 0.8;
-                
-                // CHANGED: Cyanic Blue RGB coordinates
-                const opacity = Math.max(0.2, dataArray[i]/255); // Ensure faint lines exist even at low volume
-                ctx.fillStyle = `rgba(0, 229, 255, ${opacity})`; 
-                
-                // CHANGED: Slim lines logic. Draw very thin line centered in slot.
-                // Ensure it's at least 1px wide, but generally thin.
-                const drawThickness = Math.max(1.5, barWidth * 0.6); 
-                
-                // Center centered drawing
-                ctx.fillRect(x + (barWidth - drawThickness)/2, (height - barHeight) / 2, drawThickness, barHeight);
-                x += barWidth;
-            }
-        }
+    for (let i = 0; i < usefulBins; i++) {
+        // Height Calculation (0.8 multiplier keeps it inside box)
+        const barHeight = (dataArray[i] / 255) * height * 0.8;
+        
+        // Color: Cyanic Blue with opacity based on volume
+        const opacity = Math.max(0.2, dataArray[i] / 255);
+        ctx.fillStyle = `rgba(0, 229, 255, ${opacity})`;
+        
+        // Draw: Center the bar vertically
+        ctx.fillRect(x, (height - barHeight) / 2, barWidth, barHeight);
+        
+        // Move X forward by the full slot width (bar + gap)
+        x += slotWidth;
+    }
+}
 
         function toggleAudio() {
             if (!isAudioCtxSetup) setupAudioContext();
