@@ -47,32 +47,39 @@
     </div>
 
     <script>
-        // REPLACE THIS URL with your Supabase Storage URL
-        // Go to Supabase -> Storage -> "briefs" bucket -> Click "Get Public URL" on any file -> Copy the base part
-       const STORAGE_URL = "https://sfirrnvluecsmwvyfavr.supabase.co/storage/v1/object/public/NewsKernal";
+        // --- THE MAGIC LINK (Hardcoded based on your test) ---
+        // This points to: /NewsKernal bucket -> /public folder
+        const BASE_URL = "https://sfirrnvluecsmwvyfavr.supabase.co/storage/v1/object/public/NewsKernal/public";
 
         const audio = document.getElementById('audioElement');
         const btn = document.getElementById('playBtn');
 
         async function initNewsKernal() {
             try {
-                // Fetch Metadata (Text & Date)
-                const res = await fetch(`${STORAGE_URL}/public/latest_data.json?t=${Date.now()}`);
-                if (!res.ok) throw new Error("Offline");
+                console.log("Fetching from:", BASE_URL);
+                
+                // 1. Fetch JSON Data
+                const res = await fetch(`${BASE_URL}/latest_data.json?t=${Date.now()}`);
+                
+                if (!res.ok) {
+                    throw new Error(`Server Error: ${res.status}`);
+                }
                 
                 const data = await res.json();
                 
-                // Update UI
+                // 2. Update UI
                 document.getElementById('dateDisplay').innerText = data.date;
                 document.getElementById('transcript').innerText = data.summary;
                 document.getElementById('statusText').innerText = "Broadcast Ready";
                 document.getElementById('dot').classList.add('live');
                 
-                // Preload Audio
-                audio.src = `${STORAGE_URL}/public/latest_brief.mp3?t=${Date.now()}`;
+                // 3. Set Audio Source
+                audio.src = `${BASE_URL}/latest_brief.mp3?t=${Date.now()}`;
                 
             } catch (e) {
+                console.error("NewsKernal Error:", e);
                 document.getElementById('statusText').innerText = "Broadcast Offline";
+                document.getElementById('dateDisplay').innerText = "Check Console for Details";
                 btn.disabled = true;
                 btn.style.background = "#333";
                 btn.innerText = "No Brief Available";
