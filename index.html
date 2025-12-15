@@ -330,9 +330,9 @@
             // Most high frequencies (index 80+) are empty in speech.
             // We only visualize indices 0 to 85 (approx 70% of data).
             // We map this 70% of data to 100% of the canvas width.
-            const usefulBins = 85; 
+            const usefulBins = 100; 
             const slotWidth = width / usefulBins; 
-            const gap = 1; 
+            const gap = 2; 
             const barWidth = Math.max(1, slotWidth - gap);
 
             let x = 0;
