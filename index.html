@@ -427,11 +427,12 @@
             const height = canvas.height / window.devicePixelRatio;
             
             // CHANGED: Calculate finer bar width
-            const barWidth = width / bufferLength;
+            const usableData = Math.floor(bufferLength * 0.7); 
+            const barWidth = width / usableData;
             let barHeight;
             let x = 0;
 
-            for (let i = 0; i < bufferLength; i++) {
+            for (let i = 0; i < usableData; i++) { {
                 barHeight = (dataArray[i] / 255) * height * 0.8;
                 
                 // CHANGED: Cyanic Blue RGB coordinates
