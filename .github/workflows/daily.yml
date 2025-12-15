@@ -2,12 +2,20 @@ name: NewsKernal Daily Generator
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # Runs every day at 8:00 AM UTC
-  workflow_dispatch:      # Allows manual click to test
+    - cron: '0 8 * * *'  # Runs at 8:00 AM UTC
+  workflow_dispatch:      # Allows manual run
 
 jobs:
   broadcast:
     runs-on: ubuntu-latest
+    
+    # 1. DEFINE SECRETS HERE (Global for this job)
+    env:
+      NEWSDATA_API_KEY: ${{ secrets.NEWSDATA_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -20,10 +28,14 @@ jobs:
       - name: Install Libraries
         run: pip install -r requirements.txt
 
+      # 2. DEBUG STEP (This will tell us the truth)
+      - name: Verify Secrets (Safe Check)
+        run: |
+          if [ -z "$NEWSDATA_API_KEY" ]; then echo "❌ NEWSDATA_API_KEY is MISSING"; else echo "✅ NEWSDATA_API_KEY is LOADED"; fi
+          if [ -z "$GROQ_API_KEY" ]; then echo "❌ GROQ_API_KEY is MISSING"; else echo "✅ GROQ_API_KEY is LOADED"; fi
+          if [ -z "$SUPABASE_URL" ]; then echo "❌ SUPABASE_URL is MISSING"; else echo "✅ SUPABASE_URL is LOADED"; fi
+          if [ -z "$SUPABASE_KEY" ]; then echo "❌ SUPABASE_KEY is MISSING"; else echo "✅ SUPABASE_KEY is LOADED"; fi
+
       - name: Run NewsKernal Engine
-        env:
-          NEWSDATA_API_KEY: ${{ secrets.NEWSDATA_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        # We don't need 'env' here anymore because we defined it at the top
         run: python backend/daily_generator.py
