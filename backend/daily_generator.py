@@ -84,7 +84,7 @@ async def main():
             "date": datetime.now().strftime("%B %d, %Y"),
             "summary": script_text
         }
-        supabase.storage.from_("briefs").upload(
+        supabase.storage.from_("NewsKeral").upload(
             path="public/latest_data.json",
             file=json.dumps(metadata).encode('utf-8'),
             file_options={"content-type": "application/json", "upsert": "true"}
