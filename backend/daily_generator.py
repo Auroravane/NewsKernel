@@ -73,7 +73,7 @@ async def main():
         
         # Upload MP3
         with open(output_file, 'rb') as f:
-            supabase.storage.from_("briefs").upload(
+            supabase.storage.from_("NewsKernal").upload(
                 path="public/latest_brief.mp3",
                 file=f,
                 file_options={"content-type": "audio/mpeg", "upsert": "true"}
