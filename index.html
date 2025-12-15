@@ -14,16 +14,27 @@
 
         .player { background: var(--surface); padding: 40px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid #333; position: relative; overflow: hidden; }
         
-        /* Status Indicator */
+        /* Status & Date */
         .status-dot { height: 10px; width: 10px; background-color: #444; border-radius: 50%; display: inline-block; margin-right: 8px; }
         .live { background-color: var(--primary); box-shadow: 0 0 10px var(--primary); animation: pulse 2s infinite; }
-        
         .date { font-size: 0.85rem; color: #888; margin-bottom: 30px; display: block; }
         
-        button { background: var(--primary); color: white; border: none; padding: 18px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 12px; cursor: pointer; width: 100%; transition: all 0.2s; }
-        button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255, 76, 41, 0.2); }
-        
-        .transcript-box { margin-top: 25px; text-align: left; font-size: 0.9rem; line-height: 1.6; color: #bbb; max-height: 150px; overflow-y: auto; display: none; padding: 15px; background: #111; border-radius: 8px; }
+        /* Big Play Button */
+        .main-btn { background: var(--primary); color: white; border: none; padding: 18px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 12px; cursor: pointer; width: 100%; transition: all 0.2s; margin-bottom: 20px;}
+        .main-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255, 76, 41, 0.2); }
+        .main-btn:disabled { background: #333; cursor: not-allowed; box-shadow: none; }
+
+        /* Action Toolbar (New) */
+        .toolbar { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+        .tool-btn { background: #222; color: #bbb; border: 1px solid #333; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; flex: 1; transition: all 0.2s; }
+        .tool-btn:hover { background: #333; color: white; border-color: #555; }
+        .tool-btn:active { transform: scale(0.95); }
+
+        /* Transcript */
+        .transcript-box { margin-top: 25px; text-align: left; font-size: 0.9rem; line-height: 1.6; color: #bbb; max-height: 150px; overflow-y: auto; display: none; padding: 15px; background: #111; border-radius: 8px; border: 1px solid #222; }
+
+        /* Footer */
+        .footer { margin-top: 40px; font-size: 0.75rem; color: #444; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
@@ -40,52 +51,57 @@
         </div>
         <span class="date" id="dateDisplay">--</span>
 
-        <button id="playBtn" onclick="toggleAudio()">▶ Listen to Brief</button>
-        <audio id="audioElement" style="display:none"></audio>
+        <button id="playBtn" class="main-btn" onclick="toggleAudio()" disabled>Loading...</button>
         
+        <div class="toolbar">
+            <button class="tool-btn" onclick="downloadBrief()">⬇ Download</button>
+            <button class="tool-btn" onclick="copyScript()">📋 Copy Text</button>
+            <button class="tool-btn" onclick="shareBrief()">🚀 Share</button>
+        </div>
+
+        <audio id="audioElement" style="display:none"></audio>
         <div class="transcript-box" id="transcript"></div>
     </div>
 
-    <script>
-        // --- THE MAGIC LINK (Hardcoded based on your test) ---
-        // This points to: /NewsKernal bucket -> /public folder
-        const BASE_URL = "https://sfirrnvluecsmwvyfavr.supabase.co/storage/v1/object/public/NewsKernal/public";
+    <div class="footer">Automated by NewsKernal AI</div>
 
+    <script>
+        // --- CONFIGURATION ---
+        const BASE_URL = "https://sfirrnvluecsmwvyfavr.supabase.co/storage/v1/object/public/NewsKernal/public";
+        
         const audio = document.getElementById('audioElement');
         const btn = document.getElementById('playBtn');
+        let currentText = ""; // Store text globally for copying
 
         async function initNewsKernal() {
             try {
-                console.log("Fetching from:", BASE_URL);
-                
-                // 1. Fetch JSON Data
+                // 1. Fetch Data
                 const res = await fetch(`${BASE_URL}/latest_data.json?t=${Date.now()}`);
-                
-                if (!res.ok) {
-                    throw new Error(`Server Error: ${res.status}`);
-                }
-                
+                if (!res.ok) throw new Error("Offline");
                 const data = await res.json();
                 
-                // 2. Update UI
+                // 2. Set Globals & UI
+                currentText = data.summary;
                 document.getElementById('dateDisplay').innerText = data.date;
                 document.getElementById('transcript').innerText = data.summary;
-                document.getElementById('statusText').innerText = "Broadcast Ready";
-                document.getElementById('dot').classList.add('live');
                 
-                // 3. Set Audio Source
+                // 3. Set Audio
                 audio.src = `${BASE_URL}/latest_brief.mp3?t=${Date.now()}`;
                 
+                // 4. Enable UI
+                document.getElementById('statusText').innerText = "Broadcast Ready";
+                document.getElementById('dot').classList.add('live');
+                btn.innerText = "▶ Listen to Brief";
+                btn.disabled = false;
+                
             } catch (e) {
-                console.error("NewsKernal Error:", e);
+                console.error(e);
                 document.getElementById('statusText').innerText = "Broadcast Offline";
-                document.getElementById('dateDisplay').innerText = "Check Console for Details";
-                btn.disabled = true;
-                btn.style.background = "#333";
                 btn.innerText = "No Brief Available";
             }
         }
 
+        // --- PLAYER FUNCTIONS ---
         function toggleAudio() {
             if (audio.paused) {
                 audio.play();
@@ -94,6 +110,59 @@
             } else {
                 audio.pause();
                 btn.innerHTML = "▶ Resume Brief";
+            }
+        }
+
+        // --- NEW FEATURES ---
+
+        // 1. Download MP3 (Forces download instead of playing)
+        async function downloadBrief() {
+            if (!audio.src) return;
+            const originalText = event.target.innerText;
+            event.target.innerText = "⏳ Saving...";
+            
+            try {
+                // Fetch blob to force browser to see it as a file
+                const response = await fetch(audio.src);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                // Name the file nicely
+                a.download = `NewsKernal_${document.getElementById('dateDisplay').innerText.replace(/ /g, '_')}.mp3`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                event.target.innerText = "✅ Saved";
+            } catch (e) {
+                alert("Download failed. Try holding 'Alt' and clicking.");
+                event.target.innerText = "⬇ Download";
+            }
+            setTimeout(() => event.target.innerText = originalText, 2000);
+        }
+
+        // 2. Copy Text
+        function copyScript() {
+            if (!currentText) return;
+            navigator.clipboard.writeText(currentText);
+            const btn = event.target;
+            const original = btn.innerText;
+            btn.innerText = "✅ Copied";
+            setTimeout(() => btn.innerText = original, 2000);
+        }
+
+        // 3. Share Button
+        function shareBrief() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'NewsKernal',
+                    text: 'Daily 2-minute Tech Brief. AI-generated.',
+                    url: window.location.href
+                });
+            } else {
+                navigator.clipboard.writeText(window.location.href);
+                alert("Link copied to clipboard!");
             }
         }
 
