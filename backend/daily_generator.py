@@ -7,29 +7,41 @@ from groq import Groq
 import edge_tts
 from supabase import create_client
 
-# CONFIGURATION (Loaded from GitHub Secrets)
+# --- CONFIGURATION ---
+# The exact name of your bucket from the screenshot (Case Sensitive!)
+BUCKET_NAME = "NewsKernal" 
+
+# Load Secrets
 NEWS_API_KEY = os.getenv("NEWSDATA_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# Verify Secrets exist before starting
+if not all([NEWS_API_KEY, GROQ_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
+    print("❌ ERROR: One or more API Keys are missing from GitHub Secrets.")
+    exit(1)
 
 # Initialize Clients
 groq_client = Groq(api_key=GROQ_API_KEY)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 async def main():
-    print("🚀 NewsKernal Engine Starting...")
+    print(f"🚀 NewsKernal Engine Starting... Target Bucket: '{BUCKET_NAME}'")
 
-    # 1. FETCH NEWS (Global Tech & Science)
+    # 1. FETCH NEWS
     print("📰 Fetching World News...")
-    # Fetching 'Technology' and 'Science' to keep it smart
     url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology,science&language=en"
     
     try:
         response = requests.get(url)
         data = response.json()
-        articles = []
         
+        if data.get('status') == 'error':
+            print(f"❌ NewsAPI Error: {data.get('results', 'Unknown error')}")
+            return
+
+        articles = []
         # Grab top 5 stories
         for item in data.get('results', [])[:5]:
             desc = item.get('description') or item.get('title')
@@ -64,27 +76,27 @@ async def main():
         # 3. GENERATE AUDIO (Edge-TTS)
         print("🎙️ Synthesizing Voice...")
         output_file = "brief_today.mp3"
-        # Voice: 'en-US-BrianNeural' -> A very calm, deep, trusted voice
+        # Voice: 'en-US-BrianNeural'
         communicate = edge_tts.Communicate(script_text, "en-US-BrianNeural") 
         await communicate.save(output_file)
 
-        # 4. UPLOAD TO SUPABASE
-        print("☁️ Uploading to NewsKernal Cloud...")
+        # 4. UPLOAD TO SUPABASE (Using BUCKET_NAME variable)
+        print(f"☁️ Uploading MP3 to {BUCKET_NAME}...")
         
-        # Upload MP3
         with open(output_file, 'rb') as f:
-            supabase.storage.from_("NewsKernal").upload(
+            supabase.storage.from_(BUCKET_NAME).upload(
                 path="public/latest_brief.mp3",
                 file=f,
                 file_options={"content-type": "audio/mpeg", "upsert": "true"}
             )
 
-        # Upload JSON Metadata (for the website to read)
+        print(f"☁️ Uploading Metadata to {BUCKET_NAME}...")
         metadata = {
             "date": datetime.now().strftime("%B %d, %Y"),
             "summary": script_text
         }
-        supabase.storage.from_("NewsKeral").upload(
+        
+        supabase.storage.from_(BUCKET_NAME).upload(
             path="public/latest_data.json",
             file=json.dumps(metadata).encode('utf-8'),
             file_options={"content-type": "application/json", "upsert": "true"}
@@ -94,7 +106,7 @@ async def main():
 
     except Exception as e:
         print(f"❌ Critical Error: {e}")
-        # Optional: Add code here to send you an email if it fails
+        exit(1) # Force GitHub Action to fail so you see the Red X
 
 if __name__ == "__main__":
     asyncio.run(main())
